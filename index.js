@@ -11,7 +11,11 @@ const port = process.env.PORT || 7000;
 
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: [
+      "http://localhost:5173",
+      "https://car-doctor-project-a5ba2.web.app",
+      "https://car-doctor-project-a5ba2.firebaseapp.com",
+    ],
     credentials: true,
   })
 );
@@ -33,6 +37,12 @@ const client = new MongoClient(uri, {
 });
 
 // middleware
+
+const logger = (req, res, next) => {
+  console.log("log: info", req.method, req.url);
+  next();
+};
+
 const verifyToken = async (req, res, next) => {
   const token = req.cookies?.token;
   console.log("token value in middleware", token);
@@ -53,7 +63,6 @@ const verifyToken = async (req, res, next) => {
 async function run() {
   try {
     //await client.connect();
-    // Send a ping to confirm a successful connection
     //await client.db("admin").command({ ping: 1 });
 
     const serviceCollection = client.db("carDoctor").collection("services");
@@ -70,9 +79,15 @@ async function run() {
       res
         .cookie("token", token, {
           httpOnly: true,
-          secure: false,
+          secure: true,
         })
         .send({ success: true });
+    });
+
+    app.post("/logout", (req, res) => {
+      const user = req.body;
+      console.log("logout user", user);
+      res.clearCookie("token", { maxAge: 0 }).send({ success: true });
     });
 
     //server related code
@@ -121,7 +136,9 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/bookings", verifyToken, async (req, res) => {
+    //booking all token work
+
+    app.get("/bookings", logger, verifyToken, async (req, res) => {
       console.log("req.query.email", req.query.email);
       console.log("user in the valid token", req.user);
       if (req.query?.email !== req.user?.email) {
